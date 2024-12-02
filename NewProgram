@@ -1,0 +1,288 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Identity.Web;
+using Microsoft.IdentityModel.Tokens;
+
+
+var builder = WebApplication.CreateBuilder(args);
+
+// Add services to the container.
+builder.Services.AddControllers();
+builder.Services.AddSession();
+
+
+// Add Authentication
+/*builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = $"https://login.microsoftonline.com/{builder.Configuration["AzureAd:TenantId"]}";
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = $"https://sts.windows.net/{builder.Configuration["AzureAd:TenantId"]}/",
+            ValidateAudience = true,
+            ValidAudience = "api://51e3ec1a-fedc-4669-8fd6-9cccd21a7dbeaca",
+            ValidateLifetime = true
+        };
+    });*/
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Allow your React app's origin
+              .AllowAnyHeader() // Allow all headers
+              .AllowAnyMethod() // Allow all HTTP methods (GET, POST, etc.)
+              .AllowCredentials(); // Allow credentials if needed
+    });
+});
+
+/*builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = "https://your-auth-server"; // Your token issuer
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateAudience = false, // Optional: Set to true if audience validation is required
+            ValidateIssuer = true,   // Validate token issuer
+            ValidIssuer = "your-issuer" // Replace with your issuer
+        };
+    });*/
+
+
+builder.Services.AddDistributedMemoryCache();
+// Add authentication and configure Azure AD
+/*builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromMinutes(30); // Set session timeout
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true; // Required for GDPR compliance
+});*/
+/*builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = $"https://login.microsoftonline.com/{builder.Configuration["AzureAd:TenantId"]}";
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = $"https://sts.windows.net/{builder.Configuration["AzureAd:TenantId"]}/",
+            ValidateAudience = true,
+            ValidAudience = "api://51e3ec1a-fedc-4669-8fd6-9cccd21a7dbeaca",
+            ValidateLifetime = true,
+            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            //RoleClaimType = "roles" // Specify the claim containing roles
+        };
+    }); */
+
+
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = $"{builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}/v2.0";
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuers = new[]
+            {
+                $"{builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}/v2.0",
+                $"https://sts.windows.net/{builder.Configuration["AzureAd:TenantId"]}/"
+            },
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["AzureAd:Audience"],
+            ValidateLifetime = true,
+            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role", // Explicitly set role claim type
+            NameClaimType = "name" // Optional: Set name claim type
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                var claims = context.Principal.Claims.Select(c => new { c.Type, c.Value }).ToList();
+                Console.WriteLine("Token validated successfully!");
+                Console.WriteLine("Claims in token:");
+                foreach (var claim in claims)
+                {
+                    Console.WriteLine($"{claim.Type}: {claim.Value}");
+                }
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+
+
+builder.Services.AddAuthorization(options =>
+{
+    // Policy for "Admin" or "User" role to have read access
+    options.AddPolicy("ReadRole", policy =>
+    {
+        policy.RequireAssertion(context =>
+        {
+            var roles = context.User.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                                    .Select(r => r.Value).ToList();
+            Console.WriteLine($"Roles extracted: {string.Join(", ", roles)}");
+            return roles.Contains("Admin") || roles.Contains("User");
+        });
+    });
+
+    // Policy for "Admin" role to have write access
+    options.AddPolicy("WriteRole", policy =>
+    {
+        policy.RequireAssertion(context =>
+        {
+            var roles = context.User.FindAll("http://schemas.microsoft.com/ws/2008/06/identity/claims/role")
+                                    .Select(r => r.Value).ToList();
+            Console.WriteLine($"Roles extracted: {string.Join(", ", roles)}");
+            return roles.Contains("Admin");
+        });
+    });
+});
+
+
+
+
+
+//Latest
+/* 
+builder.Services.AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = $"{builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}/v2.0";
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuers = new[]
+            {
+                $"{builder.Configuration["AzureAd:Instance"]}{builder.Configuration["AzureAd:TenantId"]}/v2.0",
+                $"https://sts.windows.net/{builder.Configuration["AzureAd:TenantId"]}/"
+            },
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["AzureAd:Audience"],
+            ValidateLifetime = true
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine($"Authentication failed: {context.Exception.Message}");
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine($"Token validated for: {context.Principal.Identity.Name}");
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                Console.WriteLine("Authentication challenge triggered.");
+                context.Response.StatusCode = 401; // Unauthorized
+                context.Response.ContentType = "application/json";
+                var response = new { error = "Authentication failed. Invalid or missing token." };
+                return context.Response.WriteAsync(System.Text.Json.JsonSerializer.Serialize(response));
+            }
+        };
+    }); 
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ReadScope", policy =>
+    {
+        policy.RequireAssertion(context =>
+        {
+            var scopes = context.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
+            Console.WriteLine($"Scopes in token: {scopes}");
+            return scopes != null && scopes.Contains("read");
+        });
+    });
+    options.AddPolicy("WriteScope", policy =>
+    {
+        policy.RequireAssertion(context =>
+        {
+            var scopes = context.User.FindFirst("http://schemas.microsoft.com/identity/claims/scope")?.Value;
+            Console.WriteLine($"Scopes in token: {scopes}");
+            return scopes != null && scopes.Contains("write");
+        });
+    });
+});*/
+
+
+
+
+/*builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ReadScope", policy =>
+        policy.RequireAssertion(context =>
+        {
+            var scopes = context.User.FindFirst("scp")?.Value.Split(' ');
+            return scopes != null && scopes.Contains("read");
+        }));
+
+    options.AddPolicy("ReadWriteScope", policy =>
+        policy.RequireAssertion(context =>
+        {
+            var scopes = context.User.FindFirst("scp")?.Value.Split(' ');
+            return scopes != null && scopes.Contains("write");
+        }));
+});*/
+
+
+
+// Add Swagger with Bearer authentication
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Description = "Enter 'Bearer' [space] and then your valid token."
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
+
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
+var app = builder.Build();
+
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+app.UseRouting();
+app.UseSession();
+app.UseCors();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllers();
+
+app.Run();
