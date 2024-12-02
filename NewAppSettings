@@ -1,0 +1,20 @@
+{
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*",
+  "AzureAd": {
+    "Instance": "https://login.microsoftonline.com/",
+    "TenantId": "0c15e092-2abc-4479-b58e-31b939627ab0",
+    "Audience": "api://ab4981f8-bed2-42ac-902e-9cd3a533dcde",
+    "ClientId": "ab4981f8-bed2-42ac-902e-9cd3a533dcde",
+    
+    "RedirectUri": "http://localhost:5117/api/auth/token",
+    "Scopes": "api://ab4981f8-bed2-42ac-902e-9cd3a533dcde/read"
+  }
+ 
+}
+  
